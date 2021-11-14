@@ -20,7 +20,8 @@ def read_json(file_path):
 
 
 host_config = read_json(r"C:\sw\conf\host_conf.json")
-images_dir = host_config["image_gallery"]["root_dir"]
+rootdir = host_config["image_gallery"]["root_dir"]
+images_dir = rootdir + "/static/images"
 
 
 def meta_for(image_file: str) -> str:

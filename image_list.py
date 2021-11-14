@@ -8,7 +8,7 @@ Created on Sat Nov  6 18:31:58 2021
 import os
 import txt_db
 
-rootdir = r'static/images/'
+rootdir = txt_db.rootdir
 
 image_data = {}
 images = []

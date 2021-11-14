@@ -9,10 +9,19 @@ Un-swap those fields.
 @author: Radu
 """
 
+import json
 import os
 import shutil
 
-rootdir = r'C:\Users\Radu\-\projects\Python\image_gallery\static\images'
+def read_json(file_path):
+    with open(file_path, "r") as f:
+        return json.load(f)
+
+
+host_config = read_json(r"C:\sw\conf\host_conf.json")
+rootdir = host_config["image_gallery"]["root_dir"]
+images_dir = rootdir + "/static/images"
+
 INV_NUM_KEY = "Invent. Number:"
 INV_IMG_KEY = "Invent. IMG-:"
 
@@ -36,7 +45,7 @@ def is_inv_num(s: str) -> bool:
         return False
 
 
-for root, subFolders, files in os.walk(rootdir):
+for root, subFolders, files in os.walk(images_dir):
     for file in files:
         if file.endswith(".txt"):
             src_path = os.path.join(root, file)
