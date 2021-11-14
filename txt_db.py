@@ -19,7 +19,7 @@ def read_json(file_path):
         return json.load(f)
 
 
-host_config = read_json(r"C:\sw\conf\host_conf.json")
+host_config = read_json(r"C:/sw/conf/host_conf.json")
 rootdir = host_config["image_gallery"]["root_dir"]
 images_dir = rootdir + "/static/images"
 
@@ -81,6 +81,11 @@ def metadata_dict(src_path: str) -> dict:
 
 
 def cols_as_str() -> dict:
+    """
+    Read the master list of metadata columns and create a dict where
+    all columns are declared as type str.
+    :return:
+    """
     image_cols_str = {image_file_heading: 'str'}
     with open("MetadataTemplate.txt", 'r') as src:
         for line in src:
@@ -90,6 +95,13 @@ def cols_as_str() -> dict:
 
 
 def cols_list():
+    """
+    Read the master list of metadata columns and create a list
+    Returns
+    -------
+    cols : list
+        List of all metadata columns.
+    """
     cols = []
     with open("MetadataTemplate.txt", 'r') as src:
         for line in src:
@@ -98,11 +110,25 @@ def cols_list():
 
 
 def df_empty():
+    """
+    Create an empty dataframe with appropriate data column types.
+    Returns
+    -------
+    df_empty : Pandas dataframe
+        empty dataframe with appropriate data column types.
+    """
     df_empty = pd.DataFrame({c: pd.Series(dtype=t) for c, t in image_cols.items()})
     return df_empty
 
 
 def df_empty_str():
+    """
+    Create an empty dataframe with str data type for all columns.
+    Returns
+    -------
+    df_empty : Pandas dataframe
+        empty dataframe with str data type for all columns.
+    """    
     image_cols_str = cols_as_str()
     df_empty = pd.DataFrame({c: pd.Series(dtype=t) for c, t in image_cols_str.items()})
     return df_empty
@@ -136,6 +162,20 @@ def apply_types(img_dict: dict) -> dict:
 
 
 def parse_date(s: str):
+    """
+    Parse a date according to a few supported formats
+
+    Parameters
+    ----------
+    s : str
+        Date in str format.
+
+    Returns
+    -------
+    Datetime
+        Parsed datetime object, or the original string.
+
+    """
     if s:
         d = None
         formats = ['%m/%d/%Y', '%m/%d/%y']
@@ -151,6 +191,13 @@ def parse_date(s: str):
 
 
 def load_metadata():
+    """
+    Load all metadata files into a dataframe.
+    Returns
+    -------
+    df : Pandas Dataframe
+        Dataframe containing all the image metadata.
+    """
     df = df_empty()
     for root, subFolders, files in os.walk(images_dir):
         for file in files:
@@ -160,11 +207,6 @@ def load_metadata():
                 meta_dict = apply_types(meta_dict)
                 meta_vals = [v for k, v in meta_dict.items()]
                 df.loc[len(df)] = meta_vals
-    # df = df.apply(lambda x: x.str.strip()).replace('', np.nan)
-    # df.convert_dtypes()
-    # df = df.astype(image_cols) # all cols at the same time
-    # df["Invent. Number"] = df["Invent. Number"].astype('int', errors='ignore')
-    # df["Date"] = df["Date"].astype('datetime64', errors='ignore')
     return df
 
 
@@ -217,22 +259,3 @@ def ranges() -> dict:
             ranges_dict[column] = df[column].unique().tolist()
     return ranges_dict
 
-
-#df = load_metadata()
-#df_flt = select(df, {"filter1": "Medium", "fv1": "watercolor/liquid watercolor"})
-#df_srt = order(df_flt, {'sort1': 'Orientation', 'sort2':'ID Title'})
-#print(len(df))
-# metas = [df.loc[i].tolist() for i in range(len(df))]
-# print(len(metas))
-# df.info()
-# print(df.dtypes)
-# in_inv = df["Invent. Number"]
-# in_inv = in_inv.astype(int, errors='ignore')
-
-# rngs = ranges()
-
-# for index, row in df.iterrows():
-#     print(row["Invent. IMG-"])
-
-# for key, value in image_cols_str.items():
-#     print(key, value)

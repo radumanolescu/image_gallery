@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Nov  6 18:31:58 2021
-
+High-level methods meant to be called from the web app routes
 @author: Radu
 """
 
@@ -9,12 +9,12 @@ import os
 import txt_db
 
 rootdir = txt_db.rootdir
+images_dir = rootdir + "/static/images"
 
-image_data = {}
-images = []
 metadata_col_names = txt_db.cols_list()
 col_indexes = [str(i) for i in range(len(metadata_col_names)+1)]
 df = txt_db.load_metadata()
+
 
 def read_headings(src_path: str) -> dict:
     """ Reads the image metadata template file and returns the data as a dictionary.
@@ -68,6 +68,11 @@ def metadata_indexed_values(src_path: str) -> dict:
 
 
 def all_meta():
+    """
+    Iterate over the metadata text files and load them into
+    a list of indexed dicts
+    :return: list of dict of col_idx:col_val
+    """
     metas = []
     for root, subFolders, files in os.walk(rootdir):
         for file in files:
@@ -103,7 +108,7 @@ def save_meta(metadata: dict) -> None:
     :param metadata: content of the form
     :return: None
     """
-    dst_path = rootdir + txt_db.meta_for(metadata[txt_db.image_file_heading])
+    dst_path = images_dir + txt_db.meta_for(metadata[txt_db.image_file_heading])
     dst = open(dst_path, "w")
     for key in metadata:
         if key == txt_db.image_file_heading:
@@ -120,10 +125,3 @@ def save_meta(metadata: dict) -> None:
     # ToDo: refresh just this file, not the whole dataframe
     df = txt_db.load_metadata()
 
-
-# for root, subFolders, files in os.walk(rootdir):
-#     for file in files:
-#         if file.endswith(".txt"):
-#             src_path = os.path.join(root, file)
-#             # ToDo: read metadata as a dict d, and store it: image_data[image_file] = d
-#             metadata = metadata_dict(src_path)
