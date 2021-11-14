@@ -1,0 +1,28 @@
+table thead,
+table tfoot {
+  position: sticky;
+}
+table thead {
+  inset-block-start: 0; /* "top" */
+}
+table tfoot {
+  inset-block-end: 0; /* "bottom" */
+}
+thead,
+tfoot {
+  background: #eee;
+}
+thead {
+  position: sticky;
+  top: 0;
+  border-bottom: 2px solid #ccc;
+}
+tfoot {
+  position: sticky;
+  bottom: 0;
+  border-top: 2px solid #ccc;
+}
+table, th, td {
+  border: 1px solid Olive;
+  border-collapse: collapse;
+}	

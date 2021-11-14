@@ -1,0 +1,22 @@
+Invent. Number
+Invent. IMG-
+Hig Res Image
+Date
+ID Title
+Website Title
+Part of a Gallery
+Medium
+Substrate
+Dimensions HxWxD
+Orientation
+Edition
+Location
+in Inventory
+Number Sold
+Sale Price
+Cost of Goods
+Current Inventory
+Goods Sold
+Currently Shown
+Shown in Past
+Keywords

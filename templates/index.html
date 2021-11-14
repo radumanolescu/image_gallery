@@ -1,0 +1,128 @@
+<html>
+<head>
+    <!-- https://css-tricks.com/making-tables-with-sticky-header-and-footers-got-a-bit-easier/ -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}"/>
+</head>
+<body>
+<!-- ToDo: empty the option list in fv1, fv2 before adding new ones
+	https://stackoverflow.com/questions/208105/remove-properties-from-objects-javascript
+ -->
+<script>
+    var ranges_json = JSON.parse('{{ ranges | tojson | safe}}');
+    function setFilter1options() {
+    	var flt1 = document.getElementById('filter1');
+    	var fv1 = document.getElementById('fv1');
+    	fv1.options.length = 0;
+    	var fv1_val = flt1.value;
+    	var fv1_opt = ranges_json[fv1_val];
+    	var i = 0;
+    	fv1.options[i] = new Option('--Select--', '');
+    	fv1_opt.forEach(v => { fv1.options[++i] = new Option(v, v); });
+    }
+    function setFilter2options() {
+    	var flt2 = document.getElementById('filter2');
+    	var fv2 = document.getElementById('fv2');
+    	fv2.options.length = 0;
+    	var fv2_val = flt2.value;
+    	var fv2_opt = ranges_json[fv2_val];
+    	var i = 0;
+    	fv2.options[i] = new Option('--Select--', '');
+    	fv2_opt.forEach(v => { fv2.options[++i] = new Option(v, v); });
+    }
+
+</script>
+<!-- Filter and sort
+Dependent drop-down boxes
+	https://stackoverflow.com/questions/19728666/drop-down-box-dependent-on-the-option-selected-in-another-drop-down-box
+Create a JSON object containing data in Flask and pass it to the HTML page, to be used to set dropdowns
+	https://stackoverflow.com/questions/42499535/passing-a-json-object-from-flask-to-javascript
+Javascript + JQuery
+	https://stackoverflow.com/questions/29623225/javascript-dependent-drop-down-list/29624809
+	https://jsfiddle.net/v917ycp6/595
+Javascript maps
+	https://www.javascripttutorial.net/es6/javascript-map/
+	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/forEach
+ -->
+<form method="post" action="/index">
+    <table>
+        <tr>
+            <td>Filter by</td>
+            <td>
+                <select name="filter1" id="filter1" onchange="setFilter1options()">
+                    {%- for column in filter %}
+                    <option value="{{ column }}">{{ column }}</option>
+                    {%- endfor %}
+                </select>
+            </td>
+            <td style="width:30px; text-align:center;">=</td>
+            <td>
+                <select name="fv1" id="fv1">
+                </select>
+            </td>
+            <td style="width:30px; text-align:center;">,</td>
+            <td>
+                <select name="filter2" id="filter2" onchange="setFilter2options()">
+                    {%- for column in filter %}
+                    <option value="{{ column }}">{{ column }}</option>
+                    {%- endfor %}
+                </select>
+            </td>
+            <td style="width:30px; text-align:center;">=</td>
+            <td>
+                <select name="fv2" id="fv2">
+                </select>
+            </td>
+            <td style="width:64px">&nbsp</td>
+            <td>Sort by</td>
+            <td>
+                <select name="sort1" id="sort1">
+                    {%- for column in sort %}
+                    <option value="{{ column }}">{{ column }}</option>
+                    {%- endfor %}
+                </select>
+            </td>
+			<td style="width:16px; text-align:center;">,</td>
+            <td>
+                <select name="sort2" id="sort2">
+                    {%- for column in sort %}
+                    <option value="{{ column }}">{{ column }}</option>
+                    {%- endfor %}
+                </select>
+            </td>
+            <td style="width:64px">&nbsp</td>
+            <td><input type="submit" value="go"/></td>
+        </tr>
+    </table>
+</form>
+
+
+<!-- Main grid -->
+<table class="table table-striped" id="users">
+    <thead>
+    {%- for column in columns %}
+    <th>{{ headings[column] }}</th>
+    {%- endfor %}
+    </thead>
+
+    <tbody>
+    {%- for row in items %}
+    <tr>
+        {%- for column in columns %}
+        {% if column == '0' %}
+        <td>
+            <a href="{{ 'edit_metadata?image=' + row[column] }}">
+                <img src="{{url_for('static', filename='images/' + row[column])}}" alt="{{ row[column] }}"/
+                style="height:84px;"/>
+            </a>
+        </td>
+        {% else %}
+        <td>{{ row[column] }}</td>
+        {% endif %}
+        {%- endfor %}
+    </tr>
+    {%- endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>
