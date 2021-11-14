@@ -6,13 +6,21 @@ Created on Sat Nov 13 10:58:50 2021
 """
 
 import datetime
+import json
 import os
-import numpy as np
 import pandas as pd
 import re
 
-images_dir = r'C:\Users\Radu\-\projects\Python\image_gallery\static\images'
 image_file_heading = "Image file"
+
+
+def read_json(file_path):
+    with open(file_path, "r") as f:
+        return json.load(f)
+
+
+host_config = read_json(r"C:\sw\conf\host_conf.json")
+images_dir = host_config["image_gallery"]["root_dir"]
 
 
 def meta_for(image_file: str) -> str:

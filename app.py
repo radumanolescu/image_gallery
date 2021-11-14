@@ -8,53 +8,6 @@ app = Flask(__name__)
 
 
 # ---------- ---------- ---------- ---------- ---------- ----------
-
-@app.route('/hello', methods=['GET', 'POST'])
-def hello():
-    # POST request
-    if request.method == 'POST':
-        print('Incoming..')
-        print(request.get_json())  # parse as JSON
-        return 'OK', 200
-
-    # GET request (http://localhost:5000/hello)
-    else:
-        message = {'greeting': 'Hello from Flask!'}
-        return jsonify(message)  # serialize and use JSON headers
-
-
-# ---------- ---------- ---------- ---------- ---------- ----------
-
-@app.route('/r1106a_01', methods=['GET', 'POST'])
-def m1106a_01():
-    # GET request (http://localhost:5000/r1106a)
-    return render_template('1106a.html', name=image_list.all_meta())
-    # temporary code, obsolete
-
-
-# ---------- ---------- ---------- ---------- ---------- ----------
-@app.route('/r1106a', methods=['GET', 'POST'])
-def m1106a():
-    # GET request (http://localhost:5000/r1106a)
-    items_list = [{'1': 'Hello', '2': 'World', '3': {'link': '#', 'text': 'Open'}},
-                  {'1': 'World', '2': 'Hello', '3': {'link': '#', 'text': 'Open'}}]
-    return render_template('1106a.html', columns=['1', '2', '3'], items=items_list)
-    # temporary code, obsolete
-
-
-# ---------- ---------- ---------- ---------- ---------- ----------
-@app.route('/r1107a', methods=['GET', 'POST'])
-def m1107a():
-    # GET request (http://localhost:5000/r1107a)
-    cols = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18',
-            '19',
-            '20', '21', '22']
-    metadata = image_list.all_meta()
-    return render_template('1107a.html', columns=cols, items=metadata)
-    # temporary code, obsolete
-
-
-# ---------- ---------- ---------- ---------- ---------- ----------
 @app.route('/index', methods=['GET', 'POST'])
 def show_index():
     # GET request (http://localhost:5000/index)
