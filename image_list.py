@@ -9,7 +9,7 @@ import os
 import txt_db
 
 rootdir = txt_db.rootdir
-images_dir = rootdir + "/static/images"
+images_dir = rootdir + "/static/images/"
 
 metadata_col_names = txt_db.cols_list()
 col_indexes = [str(i) for i in range(len(metadata_col_names)+1)]
