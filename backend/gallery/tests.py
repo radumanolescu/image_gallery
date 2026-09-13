@@ -321,12 +321,12 @@ class DataLoadingTests(TestCase):
         # Create a sample TXT file
         self.sample_txt_path = os.path.join(self.temp_dir, 'TEST_IMG.txt')
         with open(self.sample_txt_path, 'w') as f:
-            f.write('Invent. Number\tINV001\n')
-            f.write('ID Title\tTest Image\n')
-            f.write('Medium\twatercolor\n')
-            f.write('Number Sold\t5\n')
-            f.write('Sale Price\t100.00\n')
-            f.write('Date\t01/15/2023\n')
+            f.write('Invent. Number: INV001\n')
+            f.write('ID Title: Test Image\n')
+            f.write('Medium: watercolor\n')
+            f.write('Number Sold: 5\n')
+            f.write('Sale Price: 100.00\n')
+            f.write('Date: 01/15/2023\n')
 
     def tearDown(self):
         """Clean up test data"""
@@ -392,8 +392,8 @@ class DataLoadingTests(TestCase):
         
         # Modify the TXT file
         with open(self.sample_txt_path, 'w') as f:
-            f.write('Invent. Number\tINV002\n')
-            f.write('ID Title\tUpdated Title\n')
+            f.write('Invent. Number: INV002\n')
+            f.write('ID Title: Updated Title\n')
         
         # Second load
         out = StringIO()
@@ -429,10 +429,10 @@ class DataLoadingTests(TestCase):
         import os
         from io import StringIO
         
-        # Create an invalid TXT file (no tabs, so no metadata will be extracted)
+        # Create an invalid TXT file (no colons, so no metadata will be extracted)
         invalid_path = os.path.join(self.temp_dir, 'INVALID.txt')
         with open(invalid_path, 'w') as f:
-            f.write('Invalid content without tabs\n')
+            f.write('Invalid content without colons\n')
         
         out = StringIO()
         call_command('load_metadata', '--path', self.temp_dir, stdout=out)

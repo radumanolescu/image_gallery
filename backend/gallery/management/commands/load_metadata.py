@@ -111,10 +111,10 @@ class Command(BaseCommand):
                 with open(txt_file_path, 'r', encoding='utf-8', errors='ignore') as f:
                     for line in f:
                         line = line.strip()
-                        if not line or '\t' not in line:
+                        if not line or ':' not in line:
                             continue
                         
-                        parts = line.split('\t')
+                        parts = line.split(':', 1)  # Split on first colon only
                         if len(parts) >= 2:
                             field_name = parts[0].strip()
                             field_value = parts[1].strip() if len(parts) > 1 else ''
