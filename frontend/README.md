@@ -67,11 +67,24 @@ src/
 ## Commands
 
 ```bash
-npm run dev      # dev server on :5173
-npm run build    # type-check (tsc) + production build to dist/
-npm run lint     # oxlint
-npm run preview  # serve the production build
+npm run dev         # dev server on :5173
+npm run build       # type-check (tsc) + production build to dist/
+npm run lint        # oxlint
+npm run preview     # serve the production build
+npm test            # run the Vitest suite once
+npm run test:watch  # watch mode
 ```
+
+## Testing
+
+28 tests via Vitest + React Testing Library + MSW (jsdom environment):
+
+- `SearchBar` — debounce, clear, sort field/direction selects
+- `FilterPanel` — expand/collapse, active count, clear-all, selection
+- `ImageCard` — rendering, preview/edit/select callbacks, error fallback
+- `LoginPage` — form submit, credential pass-through, error display
+- `GalleryPage` — data loading, error state, empty state, auth-aware UI
+- `api/client` — CSRF header attachment on mutating requests, `imageUrl`
 
 ## Notes
 

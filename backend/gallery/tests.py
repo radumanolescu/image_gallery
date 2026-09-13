@@ -1,7 +1,9 @@
+import time
 from django.test import TestCase, Client, override_settings
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework import status
 
@@ -465,16 +467,14 @@ class DataLoadingTests(TestCase):
 
     def test_date_parsing(self):
         """Test date parsing functionality"""
-        from gallery.management.commands.load_metadata import Command
-        
-        cmd = Command()
-        
+        from gallery.metadata_parser import parse_date
+
         # Test various date formats
-        self.assertEqual(cmd.parse_date('01/15/2023'), 
-                        cmd.parse_date('01/15/23'))
-        self.assertIsNotNone(cmd.parse_date('2023-01-15'))
-        self.assertIsNone(cmd.parse_date(''))
-        self.assertIsNone(cmd.parse_date('.'))
+        self.assertEqual(parse_date('01/15/2023'),
+                        parse_date('01/15/23'))
+        self.assertIsNotNone(parse_date('2023-01-15'))
+        self.assertIsNone(parse_date(''))
+        self.assertIsNone(parse_date('.'))
 
 
 class APITests(APITestCase):
@@ -777,3 +777,220 @@ class AuthEndpointTests(APITestCase):
             'id_title': 'Auth Test'
         }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class PerformanceTests(APITestCase):
+    """Performance smoke tests with a larger dataset.
+
+    Time bounds are generous — these catch pathological regressions
+    (N+1 queries, missing pagination) rather than measure precise latency.
+    """
+
+    RECORD_COUNT = 300
+
+    @classmethod
+    def setUpTestData(cls):
+        from gallery.models import ImageMetadata
+        ImageMetadata.objects.bulk_create([
+            ImageMetadata(
+                image_file_name=f'PERF_{i:04d}.JPG',
+                id_title=f'Performance Test Image {i}',
+                medium='watercolor' if i % 2 == 0 else 'oil',
+                location='Test Gallery',
+                number_sold=i % 10,
+                sale_price=100 + i,
+            )
+            for i in range(cls.RECORD_COUNT)
+        ])
+
+    def test_list_endpoint_responds_quickly(self):
+        start = time.time()
+        response = self.client.get('/api/images/')
+        elapsed = time.time() - start
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], self.RECORD_COUNT)
+        self.assertLess(elapsed, 5.0, f'List too slow: {elapsed:.2f}s')
+
+    def test_search_endpoint_responds_quickly(self):
+        start = time.time()
+        response = self.client.get('/api/images/?search=watercolor')
+        elapsed = time.time() - start
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], self.RECORD_COUNT // 2)
+        self.assertLess(elapsed, 5.0, f'Search too slow: {elapsed:.2f}s')
+
+    def test_csv_export_responds_quickly(self):
+        start = time.time()
+        response = self.client.get('/api/images/export_csv/')
+        elapsed = time.time() - start
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Header + one row per record
+        self.assertEqual(
+            len(response.content.decode().strip().splitlines()),
+            self.RECORD_COUNT + 1
+        )
+        self.assertLess(elapsed, 10.0, f'CSV export too slow: {elapsed:.2f}s')
+
+    def test_pagination_scales(self):
+        response = self.client.get('/api/images/?page=10')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 20)
+        self.assertEqual(response.data['count'], self.RECORD_COUNT)
+
+
+class SecurityTests(APITestCase):
+    """Security-focused API tests"""
+
+    def setUp(self):
+        from gallery.models import ImageMetadata
+        ImageMetadata.objects.create(
+            image_file_name='SEC_001.JPG', id_title='Security Test'
+        )
+        self.user = User.objects.create_user(
+            username='secuser', password='secpass123'
+        )
+
+    def test_update_requires_auth(self):
+        response = self.client.patch(
+            '/api/images/SEC_001.JPG/', {'id_title': 'X'}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_delete_requires_auth(self):
+        response = self.client.delete('/api/images/SEC_001.JPG/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_bulk_import_requires_auth(self):
+        csv_file = SimpleUploadedFile(
+            'data.csv', b'image_file_name\nX.JPG\n', content_type='text/csv'
+        )
+        response = self.client.post(
+            '/api/images/bulk_import/', {'file': csv_file}
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_csrf_enforced_for_session_authenticated_writes(self):
+        """Session-authenticated POST without CSRF token must be rejected."""
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.login(username='secuser', password='secpass123')
+        response = csrf_client.post(
+            '/api/images/',
+            data='{"image_file_name": "CSRF_TEST.JPG"}',
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_csrf_allows_request_with_valid_token(self):
+        """Session-authenticated POST with the CSRF token succeeds."""
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.login(username='secuser', password='secpass123')
+        # Prime the CSRF cookie
+        csrf_client.get('/api/auth/csrf/')
+        token = csrf_client.cookies['csrftoken'].value
+        response = csrf_client.post(
+            '/api/images/',
+            data='{"image_file_name": "CSRF_OK.JPG"}',
+            content_type='application/json',
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_bulk_import_rejects_unsupported_file_type(self):
+        self.client.force_authenticate(user=self.user)
+        bad_file = SimpleUploadedFile(
+            'malware.exe', b'MZ\x90\x00', content_type='application/octet-stream'
+        )
+        response = self.client.post(
+            '/api/images/bulk_import/', {'file': bad_file}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('Unsupported file format', str(response.data))
+
+    def test_bulk_import_rejects_missing_file(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post('/api/images/bulk_import/', {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_bulk_import_csv(self):
+        self.client.force_authenticate(user=self.user)
+        csv_file = SimpleUploadedFile(
+            'data.csv',
+            b'image_file_name,id_title,medium\nIMP_001.JPG,Imported,oil\n',
+            content_type='text/csv',
+        )
+        response = self.client.post(
+            '/api/images/bulk_import/', {'file': csv_file}
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['imported_count'], 1)
+
+    def test_search_handles_sql_injection_attempt(self):
+        response = self.client.get(
+            "/api/images/?search='; DROP TABLE image_metadata; --"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_invalid_ordering_field_ignored(self):
+        response = self.client.get('/api/images/?ordering=hacked_field')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_login_rejects_empty_body(self):
+        response = self.client.post('/api/auth/login/', {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class MigrationValidationTests(TestCase):
+    """Test the validate_metadata management command"""
+
+    def setUp(self):
+        import tempfile
+        import os
+        self.temp_dir = tempfile.mkdtemp()
+        txt_path = os.path.join(self.temp_dir, 'VAL_IMG.txt')
+        with open(txt_path, 'w') as f:
+            f.write('Invent. Number: V001\n')
+            f.write('ID Title: Validation Image\n')
+            f.write('Medium: acrylic\n')
+            f.write('Number Sold: 2\n')
+
+    def tearDown(self):
+        import shutil
+        import os
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+
+    def test_validate_reports_matching_records(self):
+        """Loaded records validate cleanly against their TXT files"""
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('load_metadata', f'--path={self.temp_dir}')
+        out = StringIO()
+        call_command('validate_metadata', f'--path={self.temp_dir}', stdout=out)
+        output = out.getvalue()
+        self.assertIn('Fully matching:         1', output)
+        self.assertIn('All records validated successfully', output)
+
+    def test_validate_reports_missing_record(self):
+        """A TXT file with no DB record is reported as missing"""
+        from django.core.management import call_command
+        from io import StringIO
+        out = StringIO()
+        call_command('validate_metadata', f'--path={self.temp_dir}', stdout=out)
+        output = out.getvalue()
+        self.assertIn('Missing DB records:', output)
+        self.assertIn('VAL_IMG.JPG', output)
+
+    def test_validate_reports_field_mismatch(self):
+        """A DB record that differs from its TXT file is reported"""
+        from django.core.management import call_command
+        from gallery.models import ImageMetadata
+        from io import StringIO
+        call_command('load_metadata', f'--path={self.temp_dir}')
+        ImageMetadata.objects.filter(
+            image_file_name='VAL_IMG.JPG'
+        ).update(medium='watercolor')
+        out = StringIO()
+        call_command('validate_metadata', f'--path={self.temp_dir}', stdout=out)
+        output = out.getvalue()
+        self.assertIn('mismatch', output.lower())
+        self.assertIn('medium', output)

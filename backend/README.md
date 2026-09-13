@@ -1,7 +1,7 @@
-# Image Gallery Backend - Phase 3 Complete
+# Image Gallery Backend
 
 ## Overview
-Phase 3 of the image gallery modernization has been successfully completed. The Django backend now exposes a full REST API via Django REST Framework, with filtering, sorting, search, bulk operations, export endpoints, and auto-generated API documentation.
+The Django backend exposes a full REST API via Django REST Framework, with filtering, sorting, search, bulk operations, export endpoints, session authentication, and auto-generated API documentation. All five modernization phases are complete — see `../DEPLOYMENT.md` for production deployment guidance.
 
 ## Completed Tasks
 
@@ -102,10 +102,23 @@ python manage.py load_metadata --path /custom/path --clear --dry-run
 - **Errors**: 0
 - **Database records created**: 221
 
+### Management Command: `validate_metadata`
+Verifies migration accuracy by re-parsing every TXT file and comparing each
+field against the database record.
+
+```bash
+python manage.py validate_metadata                    # default MEDIA_ROOT
+python manage.py validate_metadata --path /other/dir  # custom directory
+```
+
+Reports: fully matching records, records missing from the DB, field-level
+mismatches (TXT value vs DB value), DB records with no TXT file, and parse
+errors. The real collection validates with **221/221 fully matching**.
+
 ## Unit Tests
 
 ### Test Coverage
-Comprehensive test suite with **41 tests** (24 from Phase 1 + 17 new tests for Phase 2):
+Comprehensive test suite with **87 tests** covering Phases 1-5:
 
 **Phase 1 Tests:**
 - Django configuration tests (database, static/media files, installed apps)
@@ -135,6 +148,15 @@ Comprehensive test suite with **41 tests** (24 from Phase 1 + 17 new tests for P
   - Empty directory handling
   - Date parsing functionality
 
+**Phase 3/4 Tests:**
+- API endpoint tests (CRUD, filtering, search, ordering, pagination, bulk ops, exports, docs)
+- Authentication endpoint tests (CSRF, login, logout, me, session persistence)
+
+**Phase 5 Tests:**
+- **Performance tests** (4): list/search/CSV export response times with 300 records, pagination at scale
+- **Security tests** (11): unauthenticated writes rejected, CSRF enforcement for session auth, file upload validation, SQL-injection-safe search, invalid ordering handled
+- **Migration validation tests** (3): matching records, missing records, field mismatches
+
 **All tests passing successfully** ✅
 
 ## Project Structure
@@ -156,13 +178,17 @@ backend/
 │   │   ├── __init__.py
 │   │   └── commands/
 │   │       ├── __init__.py
-│   │       └── load_metadata.py  # Data loading command
+│   │       ├── load_metadata.py      # Data loading command
+│   │       └── validate_metadata.py  # Migration accuracy check
+│   ├── metadata_parser.py        # Shared TXT parsing logic
 │   ├── migrations/               # Database migrations
 │   │   ├── 0001_initial.py      # ImageMetadata model migration
 │   │   └── __init__.py
 │   ├── models.py                 # Database models
-│   ├── tests.py                  # Unit tests (41 tests)
-│   └── views.py                  # Views (to be added in Phase 3)
+│   ├── tests.py                  # Unit tests (87 tests)
+│   ├── auth_views.py             # Session auth endpoints (csrf/login/logout/me)
+│   ├── serializers.py            # DRF serializers
+│   └── views.py                  # ImageMetadata viewset + exports
 ├── manage.py                     # Django management script
 ├── db.sqlite3                    # SQLite database (221 records)
 ├── requirements.txt              # Python dependencies
@@ -356,16 +382,16 @@ The React frontend lives in `../frontend/` (see its README for details).
 - **Vite proxy**: `/api` and `/media` are proxied to `localhost:8000` so session cookies and CSRF work same-origin
 - **Features**: gallery grid, debounced search, filters, sorting, pagination, lightbox preview with zoom, metadata editing dialog, bulk edit, bulk import (CSV/Excel), export (CSV/Excel/PDF), login/logout
 
-## Next Steps (Phase 5)
-- Write unit tests for Django models and API endpoints
-- Write React component tests
-- Perform integration testing
-- Test data migration accuracy
-- Performance testing for large image collections
-- Security audit (authentication, authorization, file uploads)
-- User acceptance testing
-- Deployment preparation
-- Create deployment documentation
+## Phase 5: Testing & Launch ✅
+
+- **Backend**: 87 tests — config, auth, admin, model, data loading, API, exports, performance, security, migration validation
+- **Frontend**: 28 tests — component tests (SearchBar, FilterPanel, ImageCard), page tests (LoginPage, GalleryPage), API client tests (MSW)
+- **Migration accuracy**: `validate_metadata` command verifies all 221 records match their source TXT files
+- **Deployment**: `../DEPLOYMENT.md` documents production configuration, environment variables, and the security checklist
+
+### Environment variables (production)
+`DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`,
+`DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_CORS_ORIGINS` — see DEPLOYMENT.md.
 
 ## Notes
 - All 221 existing TXT files have been successfully migrated to the database
