@@ -346,17 +346,26 @@ Configured for React dev server:
 - `http://127.0.0.1:3000`
 - Credentials allowed for session auth
 
-## Next Steps (Phase 4)
-- Initialize React project (Vite)
-- Set up routing (React Router)
-- Install UI component library (Material-UI or Ant Design)
-- Build main gallery view (grid, filters, sort, search, pagination)
-- Implement image preview gallery with lightbox
-- Create metadata editing form
-- Build bulk editing interface
-- Implement export UI
-- Add login/logout flow
-- Integrate with this REST API
+## Phase 4: React Frontend ✅
+
+The React frontend lives in `../frontend/` (see its README for details).
+
+- **Stack**: Vite + React 19 + TypeScript + Material-UI + React Router
+- **Auth endpoints added**: `/api/auth/csrf/`, `/api/auth/login/`, `/api/auth/logout/`, `/api/auth/me/`
+- **CSRF_TRUSTED_ORIGINS** configured for the React dev server
+- **Vite proxy**: `/api` and `/media` are proxied to `localhost:8000` so session cookies and CSRF work same-origin
+- **Features**: gallery grid, debounced search, filters, sorting, pagination, lightbox preview with zoom, metadata editing dialog, bulk edit, bulk import (CSV/Excel), export (CSV/Excel/PDF), login/logout
+
+## Next Steps (Phase 5)
+- Write unit tests for Django models and API endpoints
+- Write React component tests
+- Perform integration testing
+- Test data migration accuracy
+- Performance testing for large image collections
+- Security audit (authentication, authorization, file uploads)
+- User acceptance testing
+- Deployment preparation
+- Create deployment documentation
 
 ## Notes
 - All 221 existing TXT files have been successfully migrated to the database

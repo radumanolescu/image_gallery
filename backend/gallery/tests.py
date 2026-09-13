@@ -713,3 +713,67 @@ class APITests(APITestCase):
         url = '/api/docs/'
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class AuthEndpointTests(APITestCase):
+    """Test authentication endpoints"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='authuser',
+            password='authpass123'
+        )
+
+    def test_csrf_endpoint_sets_cookie(self):
+        """Test that the CSRF endpoint sets a cookie"""
+        response = self.client.get('/api/auth/csrf/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('csrftoken', response.cookies)
+
+    def test_login_success(self):
+        """Test successful login"""
+        response = self.client.post('/api/auth/login/', {
+            'username': 'authuser',
+            'password': 'authpass123'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'authuser')
+
+    def test_login_invalid_credentials(self):
+        """Test login with wrong password"""
+        response = self.client.post('/api/auth/login/', {
+            'username': 'authuser',
+            'password': 'wrongpass'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_me_unauthenticated(self):
+        """Test /me endpoint when not logged in"""
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_me_authenticated(self):
+        """Test /me endpoint when logged in"""
+        self.client.login(username='authuser', password='authpass123')
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'authuser')
+
+    def test_logout(self):
+        """Test logout ends the session"""
+        self.client.login(username='authuser', password='authpass123')
+        response = self.client.post('/api/auth/logout/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Verify logged out
+        response = self.client.get('/api/auth/me/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_session_persists_for_writes(self):
+        """Test that a session login enables write operations"""
+        self.client.login(username='authuser', password='authpass123')
+        from gallery.models import ImageMetadata
+        response = self.client.post('/api/images/', {
+            'image_file_name': 'AUTH_TEST.JPG',
+            'id_title': 'Auth Test'
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
