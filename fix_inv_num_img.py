@@ -18,7 +18,7 @@ def read_json(file_path):
         return json.load(f)
 
 
-host_config = read_json(r"C:\sw\conf\host_conf.json")
+host_config = read_json(r"C:/sw/conf/host_conf.json")
 rootdir = host_config["image_gallery"]["root_dir"]
 images_dir = rootdir + "/static/images"
 
