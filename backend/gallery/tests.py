@@ -714,6 +714,37 @@ class APITests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_search_by_part_of_gallery(self):
+        """Search must cover part_of_gallery (gallery names like 'Alien Worlds')"""
+        from gallery.models import ImageMetadata
+        ImageMetadata.objects.create(
+            image_file_name='GALLERY_TEST.JPG',
+            id_title='Gallery Test',
+            part_of_gallery='Alian Worlds'
+        )
+        response = self.client.get('/api/images/?search=Alian Worlds')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(
+            response.data['results'][0]['image_file_name'], 'GALLERY_TEST.JPG'
+        )
+
+    def test_filter_options_endpoint(self):
+        """filter_options returns distinct values across the whole collection"""
+        from gallery.models import ImageMetadata
+        ImageMetadata.objects.create(
+            image_file_name='OPT_TEST.JPG',
+            medium='encaustic',
+            part_of_gallery='Rare Gallery'
+        )
+        response = self.client.get('/api/images/filter_options/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('medium', response.data)
+        self.assertIn('part_of_gallery', response.data)
+        self.assertIn('encaustic', response.data['medium'])
+        self.assertIn('Rare Gallery', response.data['part_of_gallery'])
+        self.assertIn('watercolor', response.data['medium'])
+
 
 class AuthEndpointTests(APITestCase):
     """Test authentication endpoints"""

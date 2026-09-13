@@ -12,7 +12,7 @@ import SelectAllIcon from '@mui/icons-material/SelectAll'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import EditNoteIcon from '@mui/icons-material/EditNote'
 
-import { listImages } from '../api/images'
+import { getFilterOptions, listImages } from '../api/images'
 import type { ImageListParams, ImageMetadata } from '../api/types'
 import SearchBar from '../components/SearchBar'
 import FilterPanel, {
@@ -29,6 +29,16 @@ import { useAuth } from '../hooks/useAuth'
 
 const PAGE_SIZE = 20
 
+const EMPTY_OPTIONS: Record<keyof FilterValues, string[]> = {
+  medium: [],
+  location: [],
+  part_of_gallery: [],
+  orientation: [],
+  substrate: [],
+  in_inventory: [],
+  currently_shown: [],
+}
+
 export default function GalleryPage() {
   const { user, logout } = useAuth()
 
@@ -38,6 +48,9 @@ export default function GalleryPage() {
   const [search, setSearch] = useState('')
   const [ordering, setOrdering] = useState('image_file_name')
   const [filters, setFilters] = useState<FilterValues>(EMPTY_FILTERS)
+  const [filterOptions, setFilterOptions] = useState<
+    Record<keyof FilterValues, string[]>
+  >(EMPTY_OPTIONS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,20 +99,22 @@ export default function GalleryPage() {
     setPage(1)
   }, [search, filters, ordering])
 
-  // Build filter dropdown options from the current result set.
-  const filterOptions = useMemo(() => {
-    const keys = Object.keys(EMPTY_FILTERS) as (keyof FilterValues)[]
-    const opts = {} as Record<keyof FilterValues, string[]>
-    for (const k of keys) {
-      const vals = new Set<string>()
-      for (const img of images) {
-        const v = img[k]
-        if (typeof v === 'string' && v.trim()) vals.add(v)
-      }
-      opts[k] = Array.from(vals).sort()
-    }
-    return opts
-  }, [images])
+  // Load filter dropdown options once — they cover the whole collection,
+  // not just the currently displayed page.
+  useEffect(() => {
+    getFilterOptions()
+      .then((opts) =>
+        setFilterOptions(
+          (prev) => ({ ...prev, ...opts }) as Record<
+            keyof FilterValues,
+            string[]
+          >
+        )
+      )
+      .catch(() => {
+        // Non-fatal: filters simply show fewer options
+      })
+  }, [])
 
   const handleSelect = (fileName: string, checked: boolean) => {
     setSelected((prev) => {

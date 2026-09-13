@@ -36,8 +36,11 @@ class ImageMetadataViewSet(viewsets.ModelViewSet):
         'location', 'in_inventory', 'currently_shown'
     ]
     search_fields = [
-        'id_title', 'website_title', 'keywords', 'invent_number',
-        'medium', 'location', 'currently_shown', 'shown_in_past'
+        'image_file_name', 'id_title', 'website_title', 'keywords',
+        'invent_number', 'invent_img', 'high_res_image',
+        'medium', 'substrate', 'dimensions_hxwxd', 'orientation',
+        'edition', 'part_of_gallery', 'location', 'in_inventory',
+        'currently_shown', 'shown_in_past',
     ]
     ordering_fields = [
         'image_file_name', 'invent_number', 'date', 'id_title', 
@@ -166,6 +169,27 @@ class ImageMetadataViewSet(viewsets.ModelViewSet):
                 )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def filter_options(self, request):
+        """
+        Return the distinct values for each filterable field across the
+        whole collection, so the UI can populate filter dropdowns
+        regardless of which page is loaded.
+        GET /api/images/filter_options/
+        """
+        options = {}
+        for field in self.filterset_fields:
+            values = (
+                ImageMetadata.objects
+                .exclude(**{f'{field}__isnull': True})
+                .exclude(**{field: ''})
+                .values_list(field, flat=True)
+                .distinct()
+                .order_by(field)
+            )
+            options[field] = list(values)
+        return Response(options)
 
     @action(detail=False, methods=['get'])
     def export_csv(self, request):

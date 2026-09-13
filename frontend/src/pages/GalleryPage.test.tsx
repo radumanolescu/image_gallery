@@ -8,7 +8,11 @@ import { makeImage } from '../test/factories'
 
 vi.mock('../api/images', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/images')>()
-  return { ...actual, listImages: vi.fn() }
+  return {
+    ...actual,
+    listImages: vi.fn(),
+    getFilterOptions: vi.fn().mockResolvedValue({}),
+  }
 })
 
 vi.mock('../api/auth', () => ({

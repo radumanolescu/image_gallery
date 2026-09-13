@@ -37,6 +37,15 @@ export async function updateImage(
   return data
 }
 
+export async function getFilterOptions(): Promise<
+  Record<string, string[]>
+> {
+  const { data } = await api.get<Record<string, string[]>>(
+    '/api/images/filter_options/'
+  )
+  return data
+}
+
 export async function bulkUpdate(
   request: BulkUpdateRequest
 ): Promise<BulkUpdateResponse> {
