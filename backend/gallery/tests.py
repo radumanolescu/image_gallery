@@ -475,3 +475,241 @@ class DataLoadingTests(TestCase):
         self.assertIsNotNone(cmd.parse_date('2023-01-15'))
         self.assertIsNone(cmd.parse_date(''))
         self.assertIsNone(cmd.parse_date('.'))
+
+
+class APITests(APITestCase):
+    """Test REST API endpoints"""
+
+    def setUp(self):
+        """Set up test data"""
+        from gallery.models import ImageMetadata
+        
+        # Create test metadata records
+        self.metadata1 = ImageMetadata.objects.create(
+            image_file_name='API_TEST_001.JPG',
+            invent_number='API001',
+            id_title='API Test Image 1',
+            medium='watercolor',
+            location='Gallery A',
+            number_sold=3,
+            sale_price=150.00
+        )
+        self.metadata2 = ImageMetadata.objects.create(
+            image_file_name='API_TEST_002.JPG',
+            invent_number='API002',
+            id_title='API Test Image 2',
+            medium='oil',
+            location='Gallery B',
+            number_sold=1,
+            sale_price=250.00
+        )
+        
+        # Create a test user for authenticated requests
+        self.user = User.objects.create_user(
+            username='apiuser',
+            password='apipass123'
+        )
+
+    def test_list_images(self):
+        """Test listing all images via API"""
+        url = '/api/images/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('results', response.data)
+        self.assertEqual(response.data['count'], 2)
+
+    def test_list_images_unauthenticated_allowed(self):
+        """Test that unauthenticated users can read (IsAuthenticatedOrReadOnly)"""
+        url = '/api/images/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_retrieve_image_detail(self):
+        """Test retrieving a single image by primary key"""
+        url = '/api/images/API_TEST_001.JPG/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['image_file_name'], 'API_TEST_001.JPG')
+        self.assertEqual(response.data['id_title'], 'API Test Image 1')
+
+    def test_retrieve_nonexistent_image(self):
+        """Test retrieving a nonexistent image returns 404"""
+        url = '/api/images/NONEXISTENT.JPG/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_create_image_requires_auth(self):
+        """Test that creating an image requires authentication"""
+        url = '/api/images/'
+        data = {
+            'image_file_name': 'API_TEST_003.JPG',
+            'id_title': 'New API Image',
+            'medium': 'acrylic'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_image_authenticated(self):
+        """Test creating an image with authentication"""
+        self.client.force_authenticate(user=self.user)
+        url = '/api/images/'
+        data = {
+            'image_file_name': 'API_TEST_003.JPG',
+            'id_title': 'New API Image',
+            'medium': 'acrylic'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['image_file_name'], 'API_TEST_003.JPG')
+
+    def test_update_image_authenticated(self):
+        """Test updating an image with authentication"""
+        self.client.force_authenticate(user=self.user)
+        url = '/api/images/API_TEST_001.JPG/'
+        data = {'id_title': 'Updated Title'}
+        response = self.client.patch(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id_title'], 'Updated Title')
+
+    def test_delete_image_authenticated(self):
+        """Test deleting an image with authentication"""
+        self.client.force_authenticate(user=self.user)
+        url = '/api/images/API_TEST_002.JPG/'
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+        from gallery.models import ImageMetadata
+        self.assertFalse(
+            ImageMetadata.objects.filter(image_file_name='API_TEST_002.JPG').exists()
+        )
+
+    def test_filter_by_medium(self):
+        """Test filtering images by medium"""
+        url = '/api/images/?medium=watercolor'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(
+            response.data['results'][0]['medium'], 'watercolor'
+        )
+
+    def test_search_functionality(self):
+        """Test full-text search across metadata fields"""
+        url = '/api/images/?search=watercolor'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+
+    def test_search_by_title(self):
+        """Test search by image title"""
+        url = '/api/images/?search=Test Image 2'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(
+            response.data['results'][0]['id_title'], 'API Test Image 2'
+        )
+
+    def test_ordering_by_field(self):
+        """Test ordering results by field"""
+        url = '/api/images/?ordering=sale_price'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data['results']
+        self.assertEqual(results[0]['image_file_name'], 'API_TEST_001.JPG')
+        self.assertEqual(results[1]['image_file_name'], 'API_TEST_002.JPG')
+
+    def test_pagination(self):
+        """Test that results are paginated"""
+        # Create more records to test pagination
+        from gallery.models import ImageMetadata
+        for i in range(25):
+            ImageMetadata.objects.create(
+                image_file_name=f'PAGE_TEST_{i:03d}.JPG',
+                id_title=f'Page Test {i}'
+            )
+        
+        url = '/api/images/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('next', response.data)
+        self.assertIn('previous', response.data)
+        self.assertEqual(len(response.data['results']), 20)  # PAGE_SIZE
+
+    def test_bulk_update_requires_auth(self):
+        """Test that bulk update requires authentication"""
+        url = '/api/images/bulk_update/'
+        data = {
+            'image_file_names': ['API_TEST_001.JPG'],
+            'updates': {'location': 'Updated Location'}
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_bulk_update_authenticated(self):
+        """Test bulk update with authentication"""
+        self.client.force_authenticate(user=self.user)
+        url = '/api/images/bulk_update/'
+        data = {
+            'image_file_names': ['API_TEST_001.JPG', 'API_TEST_002.JPG'],
+            'updates': {'location': 'Bulk Updated Gallery'}
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['updated_count'], 2)
+        
+        # Verify the update was applied
+        from gallery.models import ImageMetadata
+        img1 = ImageMetadata.objects.get(image_file_name='API_TEST_001.JPG')
+        self.assertEqual(img1.location, 'Bulk Updated Gallery')
+
+    def test_bulk_update_invalid_fields_ignored(self):
+        """Test that invalid fields are ignored in bulk update"""
+        self.client.force_authenticate(user=self.user)
+        url = '/api/images/bulk_update/'
+        data = {
+            'image_file_names': ['API_TEST_001.JPG'],
+            'updates': {'invalid_field': 'value', 'location': 'Valid'}
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Verify only valid field was updated
+        from gallery.models import ImageMetadata
+        img = ImageMetadata.objects.get(image_file_name='API_TEST_001.JPG')
+        self.assertEqual(img.location, 'Valid')
+        self.assertFalse(hasattr(img, 'invalid_field'))
+
+    def test_export_csv(self):
+        """Test CSV export endpoint"""
+        url = '/api/images/export_csv/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        self.assertIn('attachment', response['Content-Disposition'])
+
+    def test_export_excel(self):
+        """Test Excel export endpoint"""
+        url = '/api/images/export_excel/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('spreadsheetml', response['Content-Type'])
+
+    def test_export_pdf(self):
+        """Test PDF export endpoint"""
+        url = '/api/images/export_pdf/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+
+    def test_api_docs_endpoint(self):
+        """Test that API documentation endpoint is accessible"""
+        url = '/api/schema/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_swagger_ui_endpoint(self):
+        """Test that Swagger UI is accessible"""
+        url = '/api/docs/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
